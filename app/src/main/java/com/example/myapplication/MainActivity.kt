@@ -11,23 +11,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
@@ -46,8 +48,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.data.Students
 import com.example.myapplication.data.Users
+import com.example.myapplication.model.Degree
 import com.example.myapplication.model.Role
+import com.example.myapplication.model.Student
 import com.example.myapplication.model.User
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
@@ -56,7 +61,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
             MyApplicationTheme {
                 App()
@@ -65,16 +69,23 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview
+@Preview(showSystemUi = true)
 @Composable
 fun App() {
     val navController = rememberNavController()
 
-    val users = remember {
-        Users().apply {
-            insertUser("Admin", "Admin1234", Role.ADMIN)
-            insertUser("Editor", "Editor1234", Role.EDITOR)
-            insertUser("Consultor", "Consultor1234", Role.CONSULTOR)
+    val users = Users().apply {
+        insertUser("Admin", "Admin1234", Role.ADMIN)
+        insertUser("Editor", "Editor1234", Role.EDITOR)
+        insertUser("Consultor", "Consultor1234", Role.CONSULTOR)
+    }
+
+    val students = remember {
+        Students().apply {
+            insertStudent("Juan Campos", Degree.LITC, "8-A")
+            insertStudent("Pedro Luna", Degree.LITC, "8-A")
+            insertStudent("Francisco Lopez", Degree.LITC, "8-A")
+            insertStudent("Jesus Vazquez", Degree.LITC, "8-A")
         }
     }
 
@@ -113,7 +124,8 @@ fun App() {
                         navController.navigate("Login") {
                             popUpTo("Login") { inclusive = true }
                         }
-                    }
+                    },
+                    students = students
                 )
             }
         }
@@ -123,7 +135,7 @@ fun App() {
 @Composable
 fun LoginApp(
     snackbarHostState: SnackbarHostState,
-    onLogin: (String, String) -> Unit
+    onClick: (String, String) -> Unit
 ) {
     Scaffold(
         topBar = { TopBar() },
@@ -131,15 +143,39 @@ fun LoginApp(
     ) { innerPadding ->
         LoginScreen(
             Modifier.padding(innerPadding),
-            onLogin = onLogin
+            onClick
         )
     }
 }
 
 @Composable
-fun ProfileApp(user: User, onLogout: () -> Unit) {
+fun ProfileApp(
+    user: User,
+    onLogout: () -> Unit,
+    students: Students
+) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    var showDialog by remember { mutableStateOf(false) }
+    var selectedStudent by remember { mutableStateOf<Student?>(null) }
+
+    if (showDialog) {
+        ProfileDialog(
+            student = selectedStudent,
+            onDismiss = {
+                showDialog = false
+                selectedStudent = null
+            },
+            onConfirm = { name, degree, group ->
+                if (selectedStudent == null) {
+                    students.insertStudent(name, degree, group)
+                } else {
+                    students.updateStudent(selectedStudent!!.id, name, degree, group)
+                }
+            }
+        )
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -173,10 +209,30 @@ fun ProfileApp(user: User, onLogout: () -> Unit) {
                 TopBar(onOpenDrawer = {
                     scope.launch { drawerState.open() }
                 })
+            },
+            floatingActionButton = {
+                if (user.role == Role.ADMIN) {
+                    FloatingActionButton(onClick = {
+                        selectedStudent = null
+                        showDialog = true
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Student")
+                    }
+                }
             }
         ) { innerPadding ->
-            Surface(Modifier.padding(innerPadding)) {
-                ProfileCard(user.role)
+            LazyColumn (Modifier.padding(innerPadding)) {
+                items(students.consultStudents()) { student ->
+                    ProfileCard(
+                        user.role,
+                        student,
+                        onEdit = {
+                            selectedStudent = it
+                            showDialog = true
+                        },
+                        onDelete = { students.deleteStudent(it.id) }
+                    )
+                }
             }
         }
     }
@@ -187,7 +243,9 @@ fun ProfileApp(user: User, onLogout: () -> Unit) {
 fun TopBar(onOpenDrawer: (() -> Unit)? = null) {
     TopAppBar(
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Image(
                     painter = painterResource(R.drawable.ic_launcher_foreground),
                     contentDescription = "My Application",
