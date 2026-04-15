@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,11 +28,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.model.Role
-
-import com.example.myapplication.model.User
+import com.example.myapplication.model.Student
 
 @Composable
-fun ProfileCard(role: Role) {
+fun ProfileCard(
+    role: Role,
+    student: Student,
+    onEdit: (Student) -> Unit = { _ -> },
+    onDelete: (Student) -> Unit = { _ -> }
+) {
     Surface (
         modifier = Modifier
             .fillMaxWidth()
@@ -41,7 +46,8 @@ fun ProfileCard(role: Role) {
                 MaterialTheme.colorScheme.secondary,
                 RoundedCornerShape(16.dp)
             ),
-        shape = RoundedCornerShape(16.dp)
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(16.dp),
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -56,45 +62,44 @@ fun ProfileCard(role: Role) {
 
                 Column {
                     Text(
-                        text = "",
+                        text = student.name,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    BodyMediumText("ID: ")
-                    BodyMediumText("Degree: ")
-                    BodyMediumText("Group: ")
+                    BodyMediumText("ID: ${student.id}")
+                    BodyMediumText("Degree: ${student.degree}")
+                    BodyMediumText("Group: ${student.group}")
                 }
             }
 
             if(role != Role.CONSULTOR) {
-                Actions()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    ActionButton(
+                        student,
+                        "Edit",
+                        Icons.Default.Edit,
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.onPrimary,
+                        onEdit
+                    )
+
+                    ActionButton(
+                        student,
+                        "Delete",
+                        Icons.Default.Delete,
+                        MaterialTheme.colorScheme.error,
+                        MaterialTheme.colorScheme.onError,
+                        onDelete
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-fun Actions() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceAround
-    ) {
-        ActionButton(
-            "Edit",
-            Icons.Default.Edit,
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.onPrimary
-        )
-
-        ActionButton(
-            "Delete",
-            Icons.Default.Delete,
-            MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.onError
-        )
     }
 }
 
@@ -109,13 +114,15 @@ fun BodyMediumText(text: String) {
 
 @Composable
 fun ActionButton(
+    student: Student,
     text: String,
     icon: ImageVector,
     containerColor: Color,
-    contentColor: Color
+    contentColor: Color,
+    onClick: (Student) -> Unit = { _ -> }
 ) {
     Button(
-        onClick = { },
+        onClick = { onClick(student) },
         modifier = Modifier.width(128.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
